@@ -54,7 +54,7 @@ export async function initTabsView() {
   // 恢复收缩模式偏好
   const settings = await loadSettings();
   if (settings.compactTabs) applyCompact(true, false);
-  t.autoGroup = !!settings.autoGroup;
+  t.autoGroup = settings.autoGroup !== false; // 默认开启；用户显式关闭则尊重
   await initCleanPanel({
     tabs: allTabs,
     aliases: () => t.aliases,
