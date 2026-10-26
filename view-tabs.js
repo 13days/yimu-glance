@@ -374,7 +374,7 @@ function pGroupBlockHTML(pg, rows, open, tokens, dups) {
       <button class="mini" data-pgact="save" title="保存">✓</button>
     </div>`;
   } else {
-    head = `<div class="row grp-head" data-key="pg-${esc(pg.id)}" data-pgroup="${esc(pg.id)}" data-drop-pgroup="${esc(pg.id)}" style="--gc:${color}">
+    head = `<div class="row grp-head" draggable="true" data-key="pg-${esc(pg.id)}" data-pgroup="${esc(pg.id)}" data-drop-pgroup="${esc(pg.id)}" style="--gc:${color}">
       <span class="chev">${open ? '▾' : '▸'}</span>
       <span class="gdot hollow"></span>
       <span class="node-name">${esc(pg.name || '未命名分组')}</span>
@@ -1148,13 +1148,30 @@ function bindList() {
   });
 
   // 拖拽：拖到标签行 = 插到它前面；拖到分组头 = 入组；拖到窗口头 = 移到该窗口末尾
+  let draggingPG = null; // 正在拖动的面板分组 id（分组排序模式）
   list.addEventListener('dragstart', (e) => {
+    const gRow = e.target.closest('.row.grp-head[data-pgroup]');
+    if (gRow && !gRow.classList.contains('editing')) {
+      draggingPG = gRow.dataset.pgroup;
+      e.dataTransfer.setData('text/plain', 'pg:' + draggingPG);
+      e.dataTransfer.effectAllowed = 'move';
+      return;
+    }
     const row = e.target.closest('.row[data-tab]');
     if (!row) { e.preventDefault(); return; }
     e.dataTransfer.setData('text/plain', row.dataset.tab);
     e.dataTransfer.effectAllowed = 'move';
   });
   list.addEventListener('dragover', (e) => {
+    if (draggingPG) {
+      // 分组排序：只认其他分组头，插到它前面
+      const target = e.target.closest('[data-drop-pgroup]');
+      if (!target || target.dataset.dropPgroup === draggingPG) return;
+      e.preventDefault();
+      clearDropCls();
+      target.classList.add('drop-before');
+      return;
+    }
     const target = e.target.closest('.row[data-tab], [data-drop-pgroup], [data-drop-group], [data-drop-win]');
     if (!target) return;
     e.preventDefault();
@@ -1162,11 +1179,31 @@ function bindList() {
     target.classList.add(target.dataset.tab ? 'drop-before' : 'drop-into');
   });
   list.addEventListener('drop', async (e) => {
+    const data = e.dataTransfer.getData('text/plain');
+    // 分组排序：插到目标分组前面，顺序持久保存
+    if (data.startsWith('pg:')) {
+      clearDropCls();
+      const srcId = data.slice(3);
+      draggingPG = null;
+      const dstEl = e.target.closest('[data-drop-pgroup]');
+      if (!dstEl || dstEl.dataset.dropPgroup === srcId) return;
+      e.preventDefault();
+      const arr = t.pgroups.groups;
+      const from = arr.findIndex((g) => g.id === srcId);
+      if (from < 0) return;
+      const [moved] = arr.splice(from, 1);
+      const to = arr.findIndex((g) => g.id === dstEl.dataset.dropPgroup);
+      if (to < 0) { arr.splice(from, 0, moved); return; }
+      arr.splice(to, 0, moved);
+      await commitPGroups();
+      toast('分组顺序已保存');
+      return;
+    }
     const target = e.target.closest('.row[data-tab], [data-drop-pgroup], [data-drop-group], [data-drop-win]');
     clearDropCls();
     if (!target) return;
     e.preventDefault();
-    const tabId = Number(e.dataTransfer.getData('text/plain'));
+    const tabId = Number(data);
     if (!tabId) return;
     if (target.dataset.tab) {
       const dst = findTab(Number(target.dataset.tab));
@@ -1184,7 +1221,10 @@ function bindList() {
       await chrome.tabs.move(tabId, { windowId: Number(target.dataset.dropWin), index: -1 });
     }
   });
-  list.addEventListener('dragend', clearDropCls);
+  list.addEventListener('dragend', () => {
+    draggingPG = null;
+    clearDropCls();
+  });
 
   // favicon 加载失败时隐藏（error 不冒泡，用捕获）
   list.addEventListener('error', (e) => {
