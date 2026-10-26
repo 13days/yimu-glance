@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>一目</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <span class="brand" id="brand" title="双击改名 ✧">一目</span>
+      <button class="tool" id="t-compact" title="收缩为图标模式 / 恢复完整列表">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1.8" y="2.3" width="12.4" height="11.4" rx="1.5"/>
+          <path d="M6 2.3v11.4"/>
+          <path d="M11.5 6.3L9.8 8l1.7 1.7"/>
+        </svg>
+      </button>
+      <nav class="seg">
+        <button id="nav-tabs" class="seg-btn active">标签页</button>
+        <button id="nav-recent" class="seg-btn">最近</button>
+        <button id="nav-coll" class="seg-btn">收藏</button>
+      </nav>
+    </div>
+    <div class="searchwrap">
+      <input id="search" type="search" placeholder="搜索：备注 / 标题 / 链接 / 内容 · 粘贴链接可直接打开" autocomplete="off" spellcheck="false">
+      <div id="open-hint" class="open-hint hidden"></div>
+    </div>
+  </header>
+
+  <!-- 标签页管理（核心视图） -->
+  <section id="view-tabs" class="view">
+    <div class="toolbar">
+      <button class="tool nav" id="t-back" title="后退：上一个访问的标签页（面板内 Alt+← / 全局 Alt+Shift+←）" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 3.2L5.2 8l4.8 4.8"/>
+        </svg>
+      </button>
+      <button class="tool nav" id="t-fwd" title="前进：下一个访问的标签页（面板内 Alt+→ / 全局 Alt+Shift+→）" disabled>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 3.2L10.8 8 6 12.8"/>
+        </svg>
+      </button>
+      <span id="t-stats" class="stats"></span>
+      <span class="spacer"></span>
+      <button class="tool" id="t-newtab" title="新建标签页">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M8 2.8v10.4M2.8 8h10.4"/>
+        </svg>
+      </button>
+      <button class="tool warn hidden" id="t-dedupe"></button>
+      <button class="tool" id="t-cleanup" title="清理不常用标签页（可标记不清理，永久记住）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13.6 2.4L8.3 7.7"/>
+          <path d="M8.7 6.4l1.9 1.9-3.2 4.6a2.3 2.3 0 0 1-3.3.5L2.2 12l5-6.3z"/>
+          <path d="M4.2 10.2l1.6 1.6"/>
+        </svg>
+      </button>
+      <button class="tool" id="t-locate" title="定位当前标签页（在树中显示）">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <circle cx="8" cy="8" r="4.2"/>
+          <path d="M8 1v2.2M8 12.8V15M1 8h2.2M12.8 8H15"/>
+          <circle cx="8" cy="8" r="0.7" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <button class="tool" id="t-groupby" title="同域名标签页自动归组">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1.8" y="1.8" width="5.2" height="5.2" rx="1"/>
+          <rect x="9" y="1.8" width="5.2" height="5.2" rx="1"/>
+          <rect x="1.8" y="9" width="5.2" height="5.2" rx="1"/>
+          <rect x="9" y="9" width="5.2" height="5.2" rx="1"/>
+        </svg>
+      </button>
+      <button class="tool" id="t-index" title="索引所有标签页正文，支持内容搜索">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+          <path d="M2 3h9M2 6h5.5M2 9h4"/>
+          <circle cx="10.2" cy="10.2" r="2.9"/>
+          <path d="M12.4 12.4L15 15"/>
+        </svg>
+      </button>
+      <button class="tool" id="t-select" title="批量选择">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 4.3l1.5 1.5 3-3"/>
+          <path d="M9.5 4.5H14"/>
+          <path d="M2 10.8l1.5 1.5 3-3"/>
+          <path d="M9.5 11H14"/>
+        </svg>
+      </button>
+      <button class="tool" id="t-collapse" title="全部折叠 / 展开">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8.7L8 4.3l5 4.4"/>
+          <path d="M3 13L8 8.6l5 4.4"/>
+        </svg>
+      </button>
+    </div>
+    <main id="t-list" class="tree" tabindex="0"></main>
+    <div id="t-batchbar" class="batchbar hidden">
+      <span id="t-selcount"></span>
+      <button data-bact="close" title="关闭所选标签页">✕ 关闭</button>
+      <button data-bact="save" title="收藏所选">⭐ 收藏</button>
+      <select id="t-batch-group" title="移入分组"></select>
+      <button data-bact="window" title="移到新窗口">🗔</button>
+      <button data-bact="cancel">取消</button>
+    </div>
+
+    <!-- 清理不常用标签页：确认面板（覆盖在目录树上） -->
+    <div id="t-clean" class="sheet hidden">
+      <div class="sheet-head">
+        <span class="sheet-title">🧹 清理不常用标签页</span>
+        <span class="spacer"></span>
+        <button class="tool" id="cl-close" title="关闭 (Esc)">✕</button>
+      </div>
+      <div class="sheet-opts">
+        <label>超过 <select id="cl-age"></select> 没看过</label>
+        <span class="spacer"></span>
+        <span id="cl-stats" class="stats"></span>
+      </div>
+      <main id="cl-list" class="tree"></main>
+      <div class="batchbar">
+        <button id="cl-all">全选</button>
+        <span class="spacer"></span>
+        <button id="cl-cancel">取消</button>
+        <button id="cl-confirm" class="primary">✕ 关闭</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 最近：最近关闭 + 浏览历史 -->
+  <section id="view-recent" class="view hidden">
+    <div class="toolbar">
+      <span id="r-stats" class="stats"></span>
+      <span class="spacer"></span>
+      <button class="tool" id="r-refresh" title="刷新">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13.5 8A5.5 5.5 0 1 1 11.9 4.1"/>
+          <path d="M12.2 1.6l.3 2.8-2.8.3"/>
+        </svg>
+      </button>
+    </div>
+    <main id="r-list" class="tree"></main>
+  </section>
+
+  <!-- 收藏归档 -->
+  <section id="view-coll" class="view hidden">
+    <div class="toolbar">
+      <span id="c-stats" class="stats"></span>
+      <span class="spacer"></span>
+      <button class="tool labeled" id="c-save-tab" title="收藏当前标签页">＋ 收藏当前页</button>
+      <button class="tool" id="c-new-folder" title="新建分组">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1.8 12.6V3.9h4.1l1.5 1.8h6.8v6.9a.9.9 0 0 1-.9.9H2.7a.9.9 0 0 1-.9-.9z"/>
+          <path d="M8 7.9v3.2M6.4 9.5h3.2"/>
+        </svg>
+      </button>
+      <button class="tool" id="c-menu-btn" title="更多">⋯</button>
+      <div id="c-menu" class="menu hidden">
+        <button id="c-dedupe">🧹 一键去重</button>
+        <button id="c-export">📤 导出 JSON</button>
+        <button id="c-import">📥 导入 JSON</button>
+      </div>
+    </div>
+    <main id="c-list" class="tree"></main>
+  </section>
+
+  <div id="toast" class="hidden"></div>
+  <input type="file" id="file-import" accept="application/json" hidden>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
