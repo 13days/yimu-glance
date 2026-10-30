@@ -426,8 +426,11 @@ function bindToolbar() {
     render();
     toast(removed ? `去重完成，合并了 ${removed} 条重复链接` : '没有发现重复链接 ✓');
   });
-  $('#c-export').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(c.data, null, 2)], { type: 'application/json' });
+  $('#c-export').addEventListener('click', async () => {
+    // 全量备份：收藏 + 备注 + 面板分组 + 设置 + 浏览记录等所有本地数据
+    const all = await chrome.storage.local.get(null);
+    const payload = { __glance_backup: 2, exportedAt: new Date().toISOString(), data: all };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `glance-${new Date().toISOString().slice(0, 10)}.json`;
@@ -577,6 +580,14 @@ async function importJSON(e) {
   if (!file) return;
   try {
     const incoming = JSON.parse(await file.text());
+    // 全量备份：整包恢复所有数据（收藏/备注/分组/设置/浏览记录）
+    if (incoming?.__glance_backup && incoming.data) {
+      await chrome.storage.local.set(incoming.data);
+      c.data = await loadData();
+      render();
+      toast('全量备份已恢复 ✓');
+      return;
+    }
     const data = c.data;
     const groupByName = new Map(data.groups.map((g) => [g.name, g]));
     const idMap = new Map();
