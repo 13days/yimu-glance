@@ -415,6 +415,7 @@ async function handleAction(act, row) {
       render();
       break;
     case 'alias-save': {
+      if (r.editUrl == null) return; // 重入防护（focusout 与 click 双触发）
       const input = row.querySelector('.alias-input') || document.querySelector('#r-list .alias-input');
       const v = (input?.value || '').trim();
       r.editUrl = null;

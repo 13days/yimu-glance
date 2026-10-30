@@ -670,6 +670,7 @@ async function handlePGroupAction(act, gid, rowEl) {
       render();
       break;
     case 'save': {
+      if (t.editPGroup == null) return; // 重入防护（focusout 与 click 双触发）
       const input = rowEl?.querySelector('.g-name') || document.querySelector('#t-list .g-name');
       const name = (input?.value || '').trim();
       t.editPGroup = null;
@@ -794,6 +795,8 @@ async function handleTabAction(act, id, rowEl) {
       render();
       break;
     case 'alias-save': {
+      // 重入防护：focusout 已保存并关闭编辑后，按钮 click 再进来会读到空值把备注清掉
+      if (t.editAliasTab == null) return;
       const input = rowEl?.querySelector('.alias-input') || document.querySelector('#t-list .alias-input');
       const v = (input?.value || '').trim();
       t.editAliasTab = null;
@@ -838,6 +841,7 @@ async function handleGroupAction(act, gid, rowEl) {
       render();
       break;
     case 'save': {
+      if (t.editGroup == null) return; // 重入防护（focusout 与 click 双触发会清空组名）
       const input = rowEl?.querySelector('.g-name') || document.querySelector('#t-list .g-name');
       const title = (input?.value || '').trim();
       t.editGroup = null;
