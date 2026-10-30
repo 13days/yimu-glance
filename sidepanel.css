@@ -415,6 +415,11 @@ mark {
 
 .t-check { margin: 0; flex: none; accent-color: var(--accent); }
 
+/* 收藏星标：已收藏金色实心，未收藏灰色空心 */
+.mini.starred { color: #f5b400; }
+.mini.starred:hover { color: #f5b400; background: var(--warn-weak); }
+.ind.star { color: #f5b400; font-size: 11px; }
+
 /* 高频使用翻页 */
 .row.pager {
   justify-content: center;

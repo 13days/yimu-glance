@@ -1,7 +1,7 @@
 // 最近视图：最近关闭（一键恢复）+ 浏览历史（今天/昨天/更早 分桶）
 // 不搜索时展示近 7 天；输入关键词则搜全部历史。已打开的页面点击直接切换过去。
 
-import { normalizeUrl, addLink, loadAliases, setAlias, mergeFavCache, loadVisits, removeVisit } from './shared.js';
+import { normalizeUrl, addLink, loadAliases, setAlias, mergeFavCache, loadVisits, removeVisit, loadData, STORAGE_KEY } from './shared.js';
 import {
   $, esc, tokensOf, highlight, faviconOf, normHost, toast, showMenu,
   matchFields, copyText, grabPageContent, FIELD_LABEL, openOrSwitchTab,
@@ -21,6 +21,7 @@ const r = {
   openNorms: new Map(),   // normUrl -> tabId（已打开的页面）
   openFavs: new Map(),    // normUrl -> 实时 favicon
   favCache: {},           // normUrl -> 持久缓存的 favicon
+  savedNorms: new Set(),  // 已收藏链接的 normUrl（星标区分已/未收藏）
   historyOk: true,        // history 接口是否可用
   query: '',
   searchedFor: null,      // 上次实际请求历史接口用的关键词
@@ -36,6 +37,9 @@ export async function initRecentView() {
   for (const ev of [chrome.history?.onVisited, chrome.history?.onVisitRemoved, chrome.sessions?.onChanged]) {
     ev?.addListener(scheduleReload);
   }
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[STORAGE_KEY]) scheduleReload(); // 收藏变化刷新星标
+  });
   await reload();
 }
 
@@ -70,12 +74,14 @@ function scheduleReload() {
 async function reload() {
   r.loadedAt = Date.now();
   const query = r.query.trim();
-  const [closed, tabs, aliases, visits] = await Promise.all([
+  const [closed, tabs, aliases, visits, coll] = await Promise.all([
     chrome.sessions?.getRecentlyClosed({ maxResults: 20 }).catch(() => []) ?? [],
     chrome.tabs.query({}),
     loadAliases(),
     loadVisits(),
+    loadData(),
   ]);
+  r.savedNorms = new Set(coll.links.map((l) => l.normUrl || normalizeUrl(l.url)));
   let hist = [];
   try {
     // 不限时间直接拉最近 300 条，客户端再分桶；带关键词则搜全部历史
@@ -352,7 +358,7 @@ function historyRowHTML(h, tokens, m) {
     ${badges.join('')}
     <span class="date">${fmtTime(h.lastVisitTime)}</span>
     <span class="acts">
-      <button class="mini" data-ract="save" title="收藏">⭐</button>
+      <button class="mini ${r.savedNorms.has(norm) ? 'starred' : ''}" data-ract="save" title="${r.savedNorms.has(norm) ? '已收藏' : '收藏'}">${r.savedNorms.has(norm) ? '★' : '☆'}</button>
       <button class="mini" data-ract="alias" title="加备注 (双击)">✎</button>
       ${del}
     </span>
@@ -494,6 +500,7 @@ function bindList() {
   });
 
   list.addEventListener('keydown', async (e) => {
+    if (e.isComposing || e.keyCode === 229) return; // 输入法上屏回车不提交
     if (!e.target.matches('.alias-input')) return;
     e.stopPropagation();
     const row = e.target.closest('.row');

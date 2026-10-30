@@ -4,7 +4,7 @@
 
 import {
   normalizeUrl, addLink, loadAliases, setAlias, loadPanelGroups, savePanelGroups, makeId, loadKeep, setKeep,
-  loadSettings, saveSettings,
+  loadSettings, saveSettings, loadData, STORAGE_KEY,
 } from './shared.js';
 import {
   $, esc, tokensOf, highlight, prettyUrl, normHost, faviconOf,
@@ -38,6 +38,7 @@ const t = {
   kb: null,                 // 键盘焦点行的 data-key
   compact: false,           // 收缩图标模式（类 Edge 垂直标签栏）
   autoGroup: false,         // 自动整理：新标签自动按域名归组（含自动建组）
+  savedNorms: new Set(),    // 已收藏链接的 normUrl（星标区分已/未收藏）
   keep: {},                 // 不清理名单：normUrl -> {title, addedAt}
   lastActive: {},           // 后台记录的 tabId -> 最后激活时间（清理时兜底 lastAccessed）
 };
@@ -55,6 +56,10 @@ export async function initTabsView() {
   const settings = await loadSettings();
   if (settings.compactTabs) applyCompact(true, false);
   t.autoGroup = settings.autoGroup !== false; // 默认开启；用户显式关闭则尊重
+  // 收藏数据变化时刷新星标状态
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes[STORAGE_KEY]) scheduleRefresh();
+  });
   await initCleanPanel({
     tabs: allTabs,
     aliases: () => t.aliases,
@@ -124,14 +129,16 @@ export async function navigateTabs(dir) {
 /* ---------------- 数据 ---------------- */
 
 async function refresh() {
-  const [wins, groups, cur, aliases, pgroups, keep] = await Promise.all([
+  const [wins, groups, cur, aliases, pgroups, keep, coll] = await Promise.all([
     chrome.windows.getAll({ populate: true, windowTypes: ['normal'] }),
     chrome.tabGroups.query({}),
     chrome.windows.getCurrent().catch(() => null),
     loadAliases(),
     loadPanelGroups(),
     loadKeep(),
+    loadData(),
   ]);
+  t.savedNorms = new Set(coll.links.map((l) => l.normUrl || normalizeUrl(l.url)));
   t.currentWindowId = cur?.id ?? null;
   wins.sort((a, b) => (b.id === t.currentWindowId) - (a.id === t.currentWindowId));
   t.windows = wins;
@@ -417,6 +424,8 @@ function tabRowHTML(tab, tokens, m, dups, depth) {
   if (tokens.length) for (const f of m.matchedFields) badges.push(`<span class="badge">${FIELD_LABEL[f]}</span>`);
   if ((dups.get(norm) || []).length > 1) badges.push('<span class="badge warn">重复</span>');
   const check = t.selectMode ? `<input type="checkbox" class="t-check" ${t.selected.has(tab.id) ? 'checked' : ''}>` : '';
+  const saved = t.savedNorms.has(norm);
+  const savedInd = saved ? '<span class="ind star" title="已收藏">★</span>' : '';
   const pinned = tab.pinned ? '<span class="ind" title="已固定">📌</span>' : '';
   const kept = t.keep[norm] ? '<span class="ind" title="已标记不清理：清理不常用标签页时自动跳过">🛡</span>' : '';
   const sound = tab.mutedInfo?.muted
@@ -438,9 +447,9 @@ function tabRowHTML(tab, tokens, m, dups, depth) {
     ${check}
     <img class="fav" src="${esc(favOf(tab))}" alt="">
     <span class="t-title">${aliasHtml}${highlight(tab.title || url, tokens)}</span>
-    ${badges.join('')}${pinned}${kept}${sound}
+    ${badges.join('')}${savedInd}${pinned}${kept}${sound}
     <span class="acts">
-      <button class="mini" data-tact="save" title="收藏">⭐</button>
+      <button class="mini ${saved ? 'starred' : ''}" data-tact="save" title="${saved ? '已收藏（再点会去重合并信息）' : '收藏'}">${saved ? '★' : '☆'}</button>
       <button class="mini" data-tact="alias" title="加备注 (F2 / 双击)">✎</button>
       <button class="mini" data-tact="close" title="关闭 (Del)">✕</button>
     </span>
@@ -774,7 +783,9 @@ async function indexContent() {
 
 async function handleTabAction(act, id, rowEl) {
   const tab = findTab(id);
-  if (!tab && act !== 'alias-cancel') return;
+  // 标签找不到时，编辑类动作也要能退出，否则编辑框会卡死
+  if (!tab && act !== 'alias-cancel' && act !== 'alias-save') return;
+  if (!tab && act === 'alias-save') act = 'alias-cancel';
   switch (act) {
     case 'activate': await activateTab(id); break;
     case 'save': await saveTabToCollection(tab); break;
@@ -1111,6 +1122,8 @@ function bindList() {
 
   // 行内输入：Enter 保存 / Esc 取消；失焦提交（IDE 习惯）
   list.addEventListener('keydown', async (e) => {
+    // 中文输入法组合态的回车（上屏确认）不当作提交
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.target.matches('.alias-input')) {
       e.stopPropagation();
       const row = e.target.closest('.row');

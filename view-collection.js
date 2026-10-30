@@ -501,6 +501,7 @@ function bindList() {
   });
 
   list.addEventListener('keydown', async (e) => {
+    if (e.isComposing || e.keyCode === 229) return; // 输入法上屏回车不提交
     if (e.target.matches('.f-name')) {
       if (e.key === 'Enter') await handleFolderAction('create', '__new__', e.target.closest('.row'));
       else if (e.key === 'Escape') { c.addingFolder = false; render(); }

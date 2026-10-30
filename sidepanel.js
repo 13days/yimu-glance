@@ -23,6 +23,7 @@ async function init() {
     timer = setTimeout(() => dispatchQuery(searchEl.value.trim()), 120);
   });
   searchEl.addEventListener('keydown', (e) => {
+    if (e.isComposing || e.keyCode === 229) return; // 输入法组合态按键忽略
     if (e.key === 'Escape') {
       searchEl.value = '';
       updateOpenHint();
@@ -236,6 +237,7 @@ function startBrandEdit() {
   };
   input.addEventListener('keydown', (e) => {
     e.stopPropagation();
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter') commit();
     else if (e.key === 'Escape') {
       done = true;
