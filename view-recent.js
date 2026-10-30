@@ -500,6 +500,11 @@ function bindList() {
     });
   });
 
+  // 保存/取消按钮不抢输入框焦点，避免 focusout 先行提交
+  list.addEventListener('mousedown', (e) => {
+    if (e.target.closest('[data-ract="alias-save"], [data-ract="alias-cancel"]')) e.preventDefault();
+  });
+
   list.addEventListener('keydown', async (e) => {
     if (e.isComposing || e.keyCode === 229) return; // 输入法上屏回车不提交
     if (!e.target.matches('.alias-input')) return;

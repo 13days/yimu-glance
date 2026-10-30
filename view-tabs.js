@@ -800,10 +800,16 @@ async function handleTabAction(act, id, rowEl) {
       const input = rowEl?.querySelector('.alias-input') || document.querySelector('#t-list .alias-input');
       const v = (input?.value || '').trim();
       t.editAliasTab = null;
-      await setAlias(normalizeUrl(urlOf(tab)), v);
-      t.aliases = await loadAliases();
-      render();
-      toast(v ? `已备注「${v}」` : '已清除备注');
+      try {
+        await setAlias(normalizeUrl(urlOf(tab)), v);
+        t.aliases = await loadAliases();
+        render();
+        toast(v ? `已备注「${v}」` : '已清除备注');
+      } catch (err) {
+        console.error('[glance] alias-save failed', err);
+        render();
+        toast('备注保存失败：' + (err?.message || err));
+      }
       break;
     }
     case 'alias-cancel':
@@ -1122,6 +1128,13 @@ function bindList() {
     else if (row.dataset.pgroup && !row.classList.contains('editing')) showPGroupMenu(e, row.dataset.pgroup);
     else if (row.dataset.group && !row.classList.contains('editing')) showGroupMenu(e, Number(row.dataset.group));
     else if (row.dataset.win) showWinMenu(e, Number(row.dataset.win));
+  });
+
+  // 行内编辑的操作按钮：mousedown 阻止抢焦点，输入框不先失焦，click 时输入框仍然健在
+  list.addEventListener('mousedown', (e) => {
+    if (e.target.closest('[data-tact="alias-save"], [data-tact="alias-cancel"], [data-gact="save"], [data-pgact="save"], .dot')) {
+      e.preventDefault();
+    }
   });
 
   // 行内输入：Enter 保存 / Esc 取消；失焦提交（IDE 习惯）
